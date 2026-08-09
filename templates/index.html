@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store_name }} - Store Manager</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --header-bg: #ffffff;
+        }
+
+        body.dark-mode {
+            --primary: #3b82f6;
+            --accent: #10b981;
+            --danger: #f87171;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --border: #334155;
+            --header-bg: #1e293b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 40px; transition: background 0.2s, color 0.2s; }
+
+        header { background: var(--header-bg); border-bottom: 1px solid var(--border); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 20px; font-weight: 800; color: var(--primary); }
+        nav { display: flex; gap: 8px; align-items: center; }
+        .nav-btn { border: none; background: transparent; padding: 10px 16px; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: 8px; color: var(--text); }
+        .nav-btn.active { background: var(--primary); color: white; }
+
+        .container { max-width: 1100px; margin: 25px auto; padding: 0 15px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .scan-box input { width: 100%; padding: 14px 18px; font-size: 18px; border: 2px solid var(--primary); border-radius: 10px; outline: none; background: var(--card); color: var(--text); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg); font-weight: 700; color: var(--text); }
+
+        .btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--accent); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-sm { padding: 5px 10px; font-size: 13px; }
+
+        .pos-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+        @media (max-width: 768px) { .pos-grid { grid-template-columns: 1fr; } }
+        .total-banner { background: var(--card); border: 2px solid var(--accent); padding: 15px; border-radius: 8px; font-size: 22px; font-weight: 800; color: var(--accent); display: flex; justify-content: space-between; margin-top: 15px; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; }
+        .modal.open { display: flex; }
+        .modal-body { background: var(--card); border-radius: 12px; padding: 25px; width: 100%; max-width: 450px; color: var(--text); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 14px; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+
+        /* Facture Printable Style */
+        @media print {
+            body * { visibility: hidden; }
+            #receipt-print-area, #receipt-print-area * { visibility: visible; }
+            #receipt-print-area { position: absolute; left: 0; top: 0; width: 80mm; padding: 10px; font-family: monospace; font-size: 12px; }
+        }
+        #receipt-print-area { display: none; background: white; color: black; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">📱 {{ store_name }} <small style="font-size: 12px; color: var(--text); font-weight: normal;">({{ role }})</small></div>
+        <nav>
+            <button class="nav-btn active" onclick="switchTab('pos')">🛒 Sell Point</button>
+            <button class="nav-btn" onclick="switchTab('stock')">📦 Inventory</button>
+            <button class="nav-btn" onclick="switchTab('sales')">📊 Sales Report</button>
+            <button class="btn btn-outline" onclick="toggleDarkMode()">🌙 Mode</button>
+            <a href="/logout" class="btn btn-danger" style="text-decoration: none;">Exit</a>
+        </nav>
+    </header>
+
+    <div class="container">
+
+        <!-- TAB 1: SELL POINT -->
+        <div id="pos-tab" class="tab-content active">
+            <div class="pos-grid">
+                <div>
+                    <div class="card">
+                        <h3>Scan Item</h3>
+                        <div class="scan-box" style="margin-top: 10px;">
+                            <input type="text" id="pos-scanner" placeholder="⚡ Scan barcode/QR code here..." autofocus autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Active Cart</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Price (DA)</th>
+                                    <th>Qty</th>
+                                    <th>Total</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart-table">
+                                <tr><td colspan="5" style="text-align: center; color: #94a3b8;">Cart is empty. Scan an item to add!</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card">
+                        <h3>Checkout</h3>
+                        <div class="total-banner">
+                            <span>TOTAL:</span>
+                            <span id="cart-total">0 DA</span>
+                        </div>
+                        <button class="btn btn-success" style="width: 100%; margin-top: 20px; padding: 15px; font-size: 18px;" onclick="completeSale()">
+                            ✅ Complete Sale & Print Facture
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: INVENTORY -->
+        <div id="stock-tab" class="tab-content">
+            <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <input type="text" id="stock-search" placeholder="🔍 Search..." style="padding: 10px; width: 300px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);" onkeyup="loadInventory()">
+                {% if role == 'admin' %}
+                <button class="btn btn-primary" onclick="openAddModal()">➕ Add New Product</button>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h3>Product List</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>QR ID</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            {% if role == 'admin' %}
+                            <th>Buy Price</th>
+                            <th>Supplier</th>
+                            {% endif %}
+                            <th>Sell Price</th>
+                            <th>Stock</th>
+                            {% if role == 'admin' %}
+                            <th>Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: SALES REPORT -->
+        <div id="sales-tab" class="tab-content">
+            <div class="card" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <label><b>Filter Date:</b></label>
+                <input type="date" id="start-date" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px;" onchange="loadSales()">
+                <span>to</span>
+                <input type="date" id="end-date" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px;" onchange="loadSales()">
+                <button class="btn btn-outline" onclick="resetDateFilter()">Today Only</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="card">
+                    <h4>Total Revenue</h4>
+                    <p id="today-revenue" style="font-size: 32px; font-weight: 800; color: var(--primary); margin-top: 5px;">0 DA</p>
+                </div>
+                <div class="card">
+                    <h4>Total Items Sold</h4>
+                    <p id="today-items" style="font-size: 32px; font-weight: 800; color: var(--accent); margin-top: 5px;">0</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Sales Log</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sale ID</th>
+                            <th>Date / Time</th>
+                            <th>Product Name</th>
+                            {% if role == 'admin' %}
+                            <th>Buy Price</th>
+                            {% endif %}
+                            <th>Sell Price</th>
+                            <th>Qty</th>
+                            <th>Total</th>
+                            <th>Facture</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ADD/EDIT MODAL -->
+    <div id="product-modal" class="modal">
+        <div class="modal-body">
+            <h3 id="modal-title" style="margin-bottom: 15px;">Add Product</h3>
+            <form id="product-form" onsubmit="saveProduct(event)">
+                <div class="form-group">
+                    <label>QR ID / Barcode Code</label>
+                    <input type="text" id="form-qr" required>
+                </div>
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="form-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="form-category" value="Accessories">
+                </div>
+                <div class="form-group">
+                    <label>Buy Price (DA)</label>
+                    <input type="number" step="0.01" min="0" id="form-buy-price" required>
+                </div>
+                <div class="form-group">
+                    <label>Selling Price (DA)</label>
+                    <input type="number" step="0.01" min="0" id="form-price" required>
+                </div>
+                <div class="form-group">
+                    <label>Supplier Name</label>
+                    <input type="text" id="form-supplier">
+                </div>
+                <div class="form-group">
+                    <label>Stock Count</label>
+                    <input type="number" min="0" id="form-stock" required>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">Save Product</button>
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- RECEIPT / FACTURE PRINT TEMPLATE -->
+    <div id="receipt-print-area">
+        <div style="text-align: center; font-weight: bold; font-size: 16px;">{{ store_name }}</div>
+        <div style="text-align: center; margin-bottom: 10px;">RECEIPT / FACTURE</div>
+        <hr>
+        <div id="receipt-date" style="margin: 5px 0;"></div>
+        <hr>
+        <div id="receipt-items"></div>
+        <hr>
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-top: 5px;">
+            <span>TOTAL:</span>
+            <span id="receipt-total"></span>
+        </div>
+        <div style="text-align: center; margin-top: 15px;">Thank you for your visit!</div>
+    </div>
+
+    <script>
+        const USER_ROLE = "{{ role }}";
+        let cart = [];
+        let currentProducts = [];
+
+        // Dark Mode setup
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function formatPrice(price) {
+            price = Number(price);
+            if (Number.isInteger(price)) return price + ' DA';
+            return price.toFixed(2).replace(/\.?0+$/, '') + ' DA';
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+            event.target.classList.add('active');
+
+            if (tab === 'stock') loadInventory();
+            if (tab === 'sales') loadSales();
+            if (tab === 'pos') document.getElementById('pos-scanner').focus();
+        }
+
+        document.getElementById('pos-scanner').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                let qrId = this.value.trim();
+                if (qrId) {
+                    addToCart(qrId);
+                    this.value = '';
+                }
+            }
+        });
+
+        function addToCart(qrId) {
+            fetch('/api/product/' + encodeURIComponent(qrId))
+                .then(res => {
+                    if (!res.ok) throw new Error("Product not found");
+                    return res.json();
+                })
+                .then(product => {
+                    let existing = cart.find(item => item.qr_id === qrId);
+                    if (existing) {
+                        existing.qty++;
+                    } else {
+                        cart.push({
+                            qr_id: product.qr_id,
+                            name: product.name,
+                            price: product.price,
+                            buy_price: product.buy_price || 0,
+                            qty: 1
+                        });
+                    }
+                    renderCart();
+                })
+                .catch(() => alert("⚠️ Product '" + qrId + "' not found!"));
+        }
+
+        function updateCartQty(index, qty) {
+            if (qty <= 0) cart.splice(index, 1);
+            else cart[index].qty = qty;
+            renderCart();
+        }
+
+        function updateCartPrice(index, newPrice) {
+            newPrice = parseFloat(newPrice) || 0;
+            let item = cart[index];
+
+            // Trigger warning if price goes below buy price
+            if (item.buy_price && newPrice < item.buy_price) {
+                alert(`⚠️ WARNING: Selling price (${formatPrice(newPrice)}) is lower than the purchase cost (${formatPrice(item.buy_price)})!`);
+            } else if (newPrice < item.price) {
+                alert(`⚠️ Note: Selling price reduced below default retail price (${formatPrice(item.price)}).`);
+            }
+
+            item.price = newPrice;
+            renderCart();
+        }
+
+        function renderCart() {
+            let tbody = document.getElementById('cart-table');
+            let total = 0;
+            if (cart.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Cart is empty. Scan an item to add!</td></tr>';
+                document.getElementById('cart-total').innerText = '0 DA';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            cart.forEach((item, i) => {
+                let subtotal = item.price * item.qty;
+                total += subtotal;
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${escapeHtml(item.name)}</b><br><small style="color:#64748b;">${escapeHtml(item.qr_id)}</small></td>
+                        <td>
+                            <input type="number" step="0.01" value="${item.price}" style="width: 80px; padding: 4px;" onchange="updateCartPrice(${i}, this.value)">
+                        </td>
+                        <td>
+                            <input type="number" min="1" value="${item.qty}" style="width: 50px; padding: 4px;" onchange="updateCartQty(${i}, parseInt(this.value))">
+                        </td>
+                        <td>${formatPrice(subtotal)}</td>
+                        <td><button class="btn btn-danger btn-sm" onclick="updateCartQty(${i}, 0)">❌</button></td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('cart-total').innerText = formatPrice(total);
+        }
+
+        function printFacture(items, totalAmount) {
+            document.getElementById('receipt-date').innerText = "Date: " + new Date().toLocaleString();
+            let itemsContainer = document.getElementById('receipt-items');
+            itemsContainer.innerHTML = '';
+            
+            items.forEach(item => {
+                itemsContainer.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; margin: 3px 0;">
+                        <span>${item.qty}x ${item.product_name || item.name}</span>
+                        <span>${formatPrice((item.price) * item.qty)}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('receipt-total').innerText = formatPrice(totalAmount);
+            document.getElementById('receipt-print-area').style.display = 'block';
+            window.print();
+            document.getElementById('receipt-print-area').style.display = 'none';
+        }
+
+        function completeSale() {
+            if (cart.length === 0) return alert("Cart is empty!");
+
+            let tempCart = [...cart];
+            let totalVal = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
+
+            fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cart: cart })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert("🎉 Sale completed!");
+                    printFacture(tempCart, totalVal);
+                    cart = [];
+                    renderCart();
+                    document.getElementById('pos-scanner').focus();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            });
+        }
+
+        function loadInventory() {
+            let query = document.getElementById('stock-search').value;
+            fetch('/api/products?search=' + encodeURIComponent(query))
+                .then(res => res.json())
+                .then(products => {
+                    currentProducts = products;
+                    let tbody = document.getElementById('inventory-table');
+                    tbody.innerHTML = '';
+
+                    if (products.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #94a3b8;">No products found.</td></tr>';
+                        return;
+                    }
+
+                    products.forEach(p => {
+                        let row = `
+                            <tr>
+                                <td><code>${escapeHtml(p.qr_id)}</code></td>
+                                <td><b>${escapeHtml(p.name)}</b></td>
+                                <td><span style="background:var(--border); padding: 3px 8px; border-radius: 4px; font-size: 12px;">${escapeHtml(p.category)}</span></td>
+                                ${USER_ROLE === 'admin' ? `<td>${formatPrice(p.buy_price)}</td><td>${escapeHtml(p.supplier)}</td>` : ''}
+                                <td>${formatPrice(p.price)}</td>
+                                <td><b style="color: ${p.stock < 5 ? 'var(--danger)' : 'inherit'}">${p.stock} units</b></td>
+                                ${USER_ROLE === 'admin' ? `
+                                <td>
+                                    <button class="btn btn-outline btn-sm" onclick="editProduct('${escapeHtml(p.qr_id)}')">✏️ Edit</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteProduct('${escapeHtml(p.qr_id)}')">🗑️</button>
+                                </td>` : ''}
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                });
+        }
+
+        function openAddModal() {
+            document.getElementById('modal-title').innerText = "Add New Product";
+            document.getElementById('product-form').reset();
+            document.getElementById('form-qr').readOnly = false;
+            document.getElementById('product-modal').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('product-modal').classList.remove('open');
+        }
+
+        function editProduct(qrId) {
+            let p = currentProducts.find(item => item.qr_id === qrId);
+            if (!p) return;
+
+            document.getElementById('modal-title').innerText = "Edit Product";
+            document.getElementById('form-qr').value = p.qr_id;
+            document.getElementById('form-qr').readOnly = true;
+            document.getElementById('form-name').value = p.name;
+            document.getElementById('form-category').value = p.category;
+            document.getElementById('form-buy-price').value = p.buy_price || 0;
+            document.getElementById('form-price').value = p.price;
+            document.getElementById('form-supplier').value = p.supplier || '';
+            document.getElementById('form-stock').value = p.stock;
+            document.getElementById('product-modal').classList.add('open');
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            let data = {
+                qr_id: document.getElementById('form-qr').value,
+                name: document.getElementById('form-name').value,
+                category: document.getElementById('form-category').value,
+                buy_price: document.getElementById('form-buy-price').value,
+                price: document.getElementById('form-price').value,
+                supplier: document.getElementById('form-supplier').value,
+                stock: document.getElementById('form-stock').value
+            };
+
+            fetch('/api/product/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(body => {
+                if (body.status === 'success') {
+                    closeModal();
+                    loadInventory();
+                } else {
+                    alert("Error: " + body.message);
+                }
+            });
+        }
+
+        function deleteProduct(qrId) {
+            if (confirm("Delete this product?")) {
+                fetch('/api/product/delete/' + encodeURIComponent(qrId), { method: 'DELETE' })
+                    .then(() => loadInventory());
+            }
+        }
+
+        function resetDateFilter() {
+            document.getElementById('start-date').value = '';
+            document.getElementById('end-date').value = '';
+            loadSales();
+        }
+
+        function loadSales() {
+            let start = document.getElementById('start-date').value;
+            let end = document.getElementById('end-date').value;
+            let url = '/api/sales?start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end);
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('today-revenue').innerText = formatPrice(data.total_revenue);
+                    document.getElementById('today-items').innerText = data.total_items;
+
+                    let tbody = document.getElementById('sales-table');
+                    tbody.innerHTML = '';
+
+                    if (data.sales.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #94a3b8;">No sales found for selected period.</td></tr>';
+                        return;
+                    }
+
+                    data.sales.forEach(s => {
+                        let dt = new Date(s.created_at.replace(' ', 'T') + 'Z');
+                        let row = `
+                            <tr>
+                                <td>${s.id}</td>
+                                <td>${dt.toLocaleString()}</td>
+                                <td>${escapeHtml(s.product_name)}</td>
+                                ${USER_ROLE === 'admin' ? `<td>${formatPrice(s.buy_price)}</td>` : ''}
+                                <td>${formatPrice(s.price)}</td>
+                                <td>${s.qty}</td>
+                                <td>${formatPrice(s.total)}</td>
+                                <td><button class="btn btn-outline btn-sm" onclick="printFacture([${JSON.stringify(s).replace(/"/g, '&quot;')}], ${s.total})">🖨️ Facture</button></td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                });
+        }
+    </script>
+</body>
+</html>
