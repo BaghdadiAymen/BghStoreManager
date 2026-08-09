@@ -4,7 +4,6 @@ import textwrap
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
-#B4 Dev
 app = Flask(__name__)
 app.secret_key = 'super_secret_store_key_change_me'  # Needed for user sessions
 DB_NAME = 'store.db'
