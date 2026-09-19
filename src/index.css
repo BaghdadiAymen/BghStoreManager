@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+body {
+  @apply bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen antialiased transition-colors duration-200;
+}
+
+@layer utilities {
+  @keyframes spinSlow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .animate-spin-slow {
+    animation: spinSlow 12s linear infinite;
+  }
+}
+
+/* Print CSS for Facture Receipts & Thermal Barcode Labels */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #receipt-print-area,
+  #receipt-print-area *,
+  #thermal-sticker-print-area,
+  #thermal-sticker-print-area * {
+    visibility: visible !important;
+  }
+  
+  #receipt-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    padding: 15px !important;
+    font-family: monospace !important;
+    font-size: 12px !important;
+    color: black !important;
+    background: white !important;
+  }
+
+  #thermal-sticker-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  @page {
+    margin: 0;
+  }
+}

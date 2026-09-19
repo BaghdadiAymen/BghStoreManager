@@ -1,0 +1,6 @@
+{
+  "name": "BiPOS Terminal",
+  "description": "BiPOS Pro Terminal by BGHaymen - Advanced POS with barcode scanner, Inventory, 5-inch Thermal Sticker Printing (BOUKHARI ZONE), Debts tracking, Sales search, and Analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
